@@ -1,0 +1,26 @@
+{
+  extends: [
+    'config:best-practices',
+  ],
+  dependencyDashboard: true,
+  gitIgnoredAuthors: [
+    '245757523+pt-release-please[bot]@users.noreply.github.com',
+  ],
+  // Keeps the .pre-commit-config.yaml `rev:` pins current.
+  'pre-commit': {
+    enabled: true,
+  },
+  customManagers: [
+    {
+      // Helm chart versions in the cni profiles.
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^main\\.tf$/',
+      ],
+      matchStrings: [
+        '#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)(?:\\s+registryUrl=(?<registryUrl>\\S+))?[^\\n]*\\n\\s*version\\s*=\\s*"(?<currentValue>[^"]+)"',
+      ],
+      versioningTemplate: 'semver',
+    },
+  ],
+}

@@ -1,0 +1,24 @@
+# Module defaults for the kube-ovn v1 chart. Override keys with helm_set or helm_values.
+# The pinger checks reach 8.8.8.8 and google.com; override them on private clusters.
+MASTER_NODES_LABEL: "${master_nodes_label}"
+ipv4:
+  SVC_CIDR: "${service_cidr}"
+  PINGER_EXTERNAL_ADDRESS: "8.8.8.8"
+  PINGER_EXTERNAL_DOMAIN: "google.com."
+func:
+  ENABLE_KEEP_VM_IP: false
+kube-ovn-controller:
+  requests:
+    memory: "512Mi"
+  limits:
+    memory: "512Mi"
+ovs-ovn:
+  requests:
+    memory: "512Mi"
+  limits:
+    memory: "512Mi"
+kube-ovn-pinger:
+  requests:
+    memory: "300Mi"
+  limits:
+    memory: "300Mi"

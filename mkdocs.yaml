@@ -1,0 +1,15 @@
+site_name: terraform-helm-cni-bootstrap
+site_description: Terraform module that installs a Kubernetes CNI with Helm during apply
+
+# docs_dir points at the repo root because the docs live alongside the code (README.md) rather
+# than in a docs/ tree. Without this, the Backstage TechDocs build (catalog-info.yaml) fails.
+docs_dir: .
+
+nav:
+  - Home: README.md
+
+exclude_docs: |
+  .terraform/
+
+plugins:
+  - techdocs-core

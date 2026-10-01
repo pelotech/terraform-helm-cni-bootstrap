@@ -1,0 +1,65 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+    - id: check-merge-conflict
+    - id: end-of-file-fixer
+    - id: trailing-whitespace
+    - id: forbid-submodules
+- repo: https://github.com/adrienverge/yamllint
+  rev: v1.38.0
+  hooks:
+    - id: yamllint
+      args: [--strict, -c=.yamllint]
+- repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
+  rev: v9.27.0
+  hooks:
+    - id: commitlint
+      stages: [commit-msg]
+      additional_dependencies: ['@commitlint/config-conventional']
+- repo: https://github.com/antonbabenko/pre-commit-terraform
+  rev: v1.109.1
+  hooks:
+    - id: terraform_fmt
+    - id: terraform_validate
+      # tests/ has no .tf files, and its shared mock_provider source resolves from the root module.
+      exclude: ^tests/
+      args:
+        - '--hook-config=--retry-once-with-cleanup=true'
+        - '--init-args=-backend=false'
+    - id: terraform_docs
+      args:
+        - '--args=--config=.terraform-docs.yml'
+    - id: terraform_trivy
+      args:
+        - '--args=--severity=HIGH,CRITICAL'
+        - '--args=--ignorefile=__GIT_WORKING_DIR__/.trivyignore'
+        - '--args=--skip-dirs=**/.terraform'
+        # Use the checks embedded in the Trivy binary instead of pulling the latest trivy-checks
+        # bundle (which can advance past the binary and fail to load — breaks CI on an empty cache).
+        # The binary comes from the nix dev shell (flake.nix), so new checks arrive with
+        # Dependabot's flake.lock bumps.
+        - '--args=--skip-check-update'
+    - id: terraform_tflint
+      args:
+        - '--args=--only=terraform_deprecated_interpolation'
+        - '--args=--only=terraform_deprecated_index'
+        - '--args=--only=terraform_unused_declarations'
+        - '--args=--only=terraform_comment_syntax'
+        - '--args=--only=terraform_documented_outputs'
+        - '--args=--only=terraform_documented_variables'
+        - '--args=--only=terraform_typed_variables'
+        - '--args=--only=terraform_module_pinned_source'
+        - '--args=--only=terraform_naming_convention'
+        - '--args=--only=terraform_required_version'
+        - '--args=--only=terraform_required_providers'
+        - '--args=--only=terraform_standard_module_structure'
+        - '--args=--only=terraform_workspace_remote'
+- repo: https://github.com/kjanat/actionlint
+  rev: v1.17
+  hooks:
+    - id: actionlint
+- repo: https://github.com/zizmorcore/zizmor-pre-commit
+  rev: v1.30.1
+  hooks:
+    - id: zizmor

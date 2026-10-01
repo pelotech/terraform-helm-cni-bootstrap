@@ -1,0 +1,17 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: terraform-helm-cni-bootstrap
+  description: Terraform module that installs a Kubernetes CNI with Helm during apply
+  tags:
+    - terraform
+    - k8s
+    - helm
+  annotations:
+    github.com/project-slug: pelotech/terraform-helm-cni-bootstrap
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: infrastructure
+  lifecycle: production
+  # Keep in sync with .github/CODEOWNERS.
+  owner: group:pelotech/foundation

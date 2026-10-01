@@ -1,0 +1,92 @@
+name: pre-commit
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+
+# One run per PR branch: a new push supersedes the in-flight run. head_ref is only set on
+# pull_request, so ref keeps push runs in their own group. Pushes to main are never cancelled —
+# each merge commit keeps its own completed run rather than being killed by the next merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.head_ref }}
+          # Do not leave the token in .git/config; untrusted PR hooks run in
+          # later steps. Write-back uses the GitHub API with GH_TOKEN instead.
+          persist-credentials: false
+
+      # Every tool (prek, tflint, terraform-docs, trivy, hcledit, tenv) comes from flake.nix, so
+      # local and CI run the same versions and Dependabot bumps them via flake.lock. `terraform` is
+      # tenv's proxy: .terraform-version says `min-required`, so it installs the required_version
+      # floor from versions.tf and CI keeps proving that constraint is honest.
+      - uses: $/.github/actions/nix-devshell
+        with:
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Regenerate docs
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: prek run terraform_docs --all-files || true
+
+      - name: Check for docs changes
+        id: docs
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if git diff --quiet -- ':(glob)**/README.md'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Runs before pre-commit so a formatting nit cannot short-circuit the job and hide a real
+      # test regression. Uses mock_provider throughout, so it needs no credentials and touches no
+      # state; -backend=false keeps init local.
+      - name: terraform test
+        run: |
+          set -euo pipefail
+          terraform init -backend=false -input=false -no-color
+          terraform test -no-color
+
+      # Runs on every event and is the required status check. On the docs commit
+      # (run #2) this re-runs and lands a green check on the head SHA. Untrusted
+      # hooks run here, BEFORE any write-capable token exists.
+      - name: prek
+        run: prek run --all-files --show-diff-on-failure
+
+      - name: Generate app token
+        id: app-token
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.docs.outputs.changed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.ORG_RELEASE_PLEASE_CLIENT_ID }}
+          private-key: ${{ secrets.ORG_RELEASE_PLEASE_PRIVATE_KEY }}
+          # Scope the installation token to what ghcommit-action needs.
+          permission-contents: write
+
+      - name: Commit docs changes back to PR branch (signed)
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.docs.outputs.changed == 'true'
+        uses: planetscale/ghcommit-action@a6b150b81dca5dd027baa898604418eec9e11465 # v0.2.22
+        with:
+          commit_message: "docs: regenerate docs"
+          repo: ${{ github.repository }}
+          branch: ${{ github.head_ref }}
+          file_pattern: ':(glob)**/README.md'
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

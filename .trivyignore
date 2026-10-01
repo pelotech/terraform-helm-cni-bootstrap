@@ -1,0 +1,3 @@
+# Trivy IaC findings to suppress.
+# Format: one Trivy check ID per line.
+# Add a comment above each entry explaining why it is suppressed.
