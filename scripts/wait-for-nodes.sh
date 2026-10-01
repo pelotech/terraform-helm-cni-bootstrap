@@ -5,7 +5,11 @@ set -euo pipefail
 export KUBECONFIG
 KUBECONFIG="$(mktemp)"
 trap 'rm -f "$KUBECONFIG"' EXIT
-aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION" >/dev/null
+if [ -n "${KUBECONFIG_CONTENT:-}" ]; then
+  printf '%s\n' "$KUBECONFIG_CONTENT" > "$KUBECONFIG"
+else
+  aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION" >/dev/null
+fi
 
 label_desc="${SELECTOR:-<any>}"
 while :; do

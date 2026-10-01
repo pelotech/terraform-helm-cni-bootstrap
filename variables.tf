@@ -21,26 +21,76 @@ variable "namespace" {
   description = "Namespace of the Helm release."
 }
 
+variable "cloud" {
+  type        = string
+  default     = "aws"
+  description = "Cloud the cluster runs on: aws or azure. Sets the CNI defaults that differ per cloud."
+
+  validation {
+    condition     = contains(["aws", "azure"], var.cloud)
+    error_message = "cloud must be one of: aws, azure."
+  }
+}
+
+variable "cluster_endpoint" {
+  type        = string
+  default     = ""
+  description = "API server URL, for the node poll. Set it together with cluster_ca_certificate and kube_exec to poll without a cloud CLI."
+
+  validation {
+    condition     = (var.cluster_endpoint != "") == (var.cluster_ca_certificate != "") && (var.cluster_endpoint != "") == (var.kube_exec != null)
+    error_message = "cluster_endpoint, cluster_ca_certificate and kube_exec must be set together."
+  }
+}
+
+variable "cluster_ca_certificate" {
+  type        = string
+  default     = ""
+  description = "Base64 encoded cluster CA certificate, for the node poll."
+}
+
+variable "kube_exec" {
+  type = object({
+    api_version = string
+    command     = string
+    args        = optional(list(string), [])
+    env         = optional(map(string), {})
+  })
+  default     = null
+  description = "Exec credential plugin the node poll authenticates with. Same shape as the helm provider's kubernetes.exec."
+}
+
+variable "pod_cidr" {
+  type        = string
+  default     = ""
+  description = "Pod CIDR the CNI allocates from. Required on azure, where AKS routes to it; leave empty on aws."
+
+  validation {
+    condition     = var.cloud != "azure" || var.cni == "custom" || var.pod_cidr != ""
+    error_message = "pod_cidr is required on azure for cilium, kube-ovn and kube-ovn-v2."
+  }
+}
+
 variable "cluster_name" {
   type        = string
   default     = ""
-  description = "Name of the cluster, for the node poll. Required when wait_for_nodes is true."
+  description = "Name of the EKS cluster, for the node poll's AWS CLI fallback. Required when wait_for_nodes is true and kube_exec is not set."
 
   validation {
     # try: an unknown cni fails its own validation instead of this one.
-    condition     = !try(local.wait_for_nodes, false) || var.cluster_name != ""
-    error_message = "cluster_name is required when waiting for nodes."
+    condition     = !try(local.poll_uses_aws_cli, false) || var.cluster_name != ""
+    error_message = "cluster_name is required when waiting for nodes without kube_exec."
   }
 }
 
 variable "region" {
   type        = string
   default     = ""
-  description = "Region of the cluster, for the node poll. Required when wait_for_nodes is true."
+  description = "AWS region of the cluster, for the node poll's AWS CLI fallback. Required when wait_for_nodes is true and kube_exec is not set."
 
   validation {
-    condition     = !try(local.wait_for_nodes, false) || var.region != ""
-    error_message = "region is required when waiting for nodes."
+    condition     = !try(local.poll_uses_aws_cli, false) || var.region != ""
+    error_message = "region is required when waiting for nodes without kube_exec."
   }
 }
 
@@ -63,8 +113,8 @@ variable "service_cidr" {
 
 variable "kube_proxy_replacement" {
   type        = bool
-  default     = true
-  description = "Turns on Cilium kube-proxy replacement. When true, k8s_service_host sets k8sServiceHost and k8sServicePort."
+  default     = null
+  description = "Turns on Cilium kube-proxy replacement. null means true on aws and false on azure, where kube-proxy stays on. When true, k8s_service_host sets k8sServiceHost and k8sServicePort."
 }
 
 variable "chart_version" {

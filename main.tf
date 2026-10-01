@@ -1,5 +1,6 @@
 locals {
-  kube_ovn_master_label = "kube-ovn/role=master"
+  kube_ovn_master_label  = "kube-ovn/role=master"
+  kube_proxy_replacement = coalesce(var.kube_proxy_replacement, var.cloud == "aws")
 
   # What each cni value installs. set is the module's default --set list; values_template its default values file.
   # node_selector is the label the node poll waits on; empty means no poll unless wait_for_nodes = true.
@@ -16,14 +17,16 @@ locals {
       values_template    = null
       set = concat(
         [
-          { name = "kubeProxyReplacement", value = tostring(var.kube_proxy_replacement) },
+          { name = "kubeProxyReplacement", value = tostring(local.kube_proxy_replacement) },
           { name = "hubble.relay.enabled", value = "true" },
           { name = "hubble.ui.enabled", value = "true" },
         ],
-        var.kube_proxy_replacement && var.k8s_service_host != "" ? [
+        local.kube_proxy_replacement && var.k8s_service_host != "" ? [
           { name = "k8sServiceHost", value = var.k8s_service_host },
           { name = "k8sServicePort", value = "443" },
         ] : [],
+        var.cloud == "azure" ? [{ name = "aksbyocni.enabled", value = "true" }] : [],
+        var.pod_cidr != "" ? [{ name = "ipam.operator.clusterPoolIPv4PodCIDRList", value = "{${var.pod_cidr}}" }] : [],
       )
     }
     "kube-ovn" = {
@@ -74,6 +77,8 @@ locals {
   values = concat(
     local.cni_profile.values_template == null ? [] : [templatefile("${path.module}/values/${local.cni_profile.values_template}", {
       service_cidr       = var.service_cidr
+      pod_cidr           = var.pod_cidr
+      pod_gateway        = var.pod_cidr != "" ? cidrhost(var.pod_cidr, 1) : ""
       master_nodes_label = local.node_selector
       master_label_key   = local.master_label[0]
       master_label_value = local.master_label[1]
@@ -88,6 +93,37 @@ locals {
   )
 }
 
+locals {
+  # With kube_exec the poll gets a rendered kubeconfig; without it, it falls back to the AWS CLI.
+  poll_uses_aws_cli = local.wait_for_nodes && var.kube_exec == null
+  poll_kubeconfig = var.kube_exec == null ? "" : yamlencode({
+    apiVersion = "v1"
+    kind       = "Config"
+    clusters = [{
+      name = "cluster"
+      cluster = {
+        server                       = var.cluster_endpoint
+        "certificate-authority-data" = var.cluster_ca_certificate
+      }
+    }]
+    users = [{
+      name = "user"
+      user = {
+        exec = {
+          apiVersion         = var.kube_exec.api_version
+          command            = var.kube_exec.command
+          args               = var.kube_exec.args
+          env                = [for k, v in var.kube_exec.env : { name = k, value = v }]
+          interactiveMode    = "Never"
+          provideClusterInfo = false
+        }
+      }
+    }]
+    contexts          = [{ name = "cluster", context = { cluster = "cluster", user = "user" } }]
+    "current-context" = "cluster"
+  })
+}
+
 moved {
   from = terraform_data.wait_nodes
   to   = terraform_data.wait_for_nodes
@@ -97,16 +133,19 @@ moved {
 resource "terraform_data" "wait_for_nodes" {
   count = var.create && local.wait_for_nodes ? 1 : 0
 
-  triggers_replace = [var.bootstrap_generation, var.cluster_name, var.region, local.node_selector, var.wait_for_nodes_count]
+  # The kubeconfig is recorded so a plan shows what the poll connects with. Credentials stay in the exec plugin.
+  input            = local.poll_kubeconfig
+  triggers_replace = [var.bootstrap_generation, var.cluster_endpoint, var.cluster_name, var.region, local.node_selector, var.wait_for_nodes_count]
 
   provisioner "local-exec" {
     command = "bash ${path.module}/scripts/wait-for-nodes.sh"
     environment = {
-      CLUSTER_NAME = var.cluster_name
-      REGION       = var.region
-      SELECTOR     = local.node_selector
-      COUNT        = tostring(var.wait_for_nodes_count)
-      TIMEOUT      = tostring(var.wait_for_nodes_timeout)
+      KUBECONFIG_CONTENT = local.poll_kubeconfig
+      CLUSTER_NAME       = var.cluster_name
+      REGION             = var.region
+      SELECTOR           = local.node_selector
+      COUNT              = tostring(var.wait_for_nodes_count)
+      TIMEOUT            = tostring(var.wait_for_nodes_timeout)
     }
   }
 }

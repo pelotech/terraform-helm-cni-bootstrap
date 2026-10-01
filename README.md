@@ -7,8 +7,9 @@ become `Ready`. Supported `cni` values: `cilium`, `kube-ovn`, `kube-ovn-v2` and 
 
 - Terraform 1.9 or later and the helm provider 3.0 or later.
 - A `helm` provider configured by you. The module configures no providers.
-- Current limitation: the kube-ovn node poll runs on the apply host, needs the `aws` and `kubectl` CLIs, and supports
-  EKS only.
+- `kubectl` and your cluster's credential plugin (`aws` or `kubelogin`) on the host that applies, for the kube-ovn
+  node poll. With `cluster_endpoint`, `cluster_ca_certificate` and `kube_exec` set, the poll builds its own
+  kubeconfig. Without them it falls back to `aws eks update-kubeconfig` and needs `cluster_name` and `region`.
 
 ## Quick start
 
@@ -46,18 +47,47 @@ provider "helm" {
     exec                   = module.stack.kube_exec
   }
 }
+
+module "cni_bootstrap" {
+  source                  = "github.com/pelotech/terraform-helm-cni-bootstrap?ref=<release tag>"
+  cloud                   = module.stack.cloud
+  cni                     = "kube-ovn-v2"
+  cluster_endpoint        = module.stack.cluster_endpoint
+  cluster_ca_certificate  = module.stack.cluster_ca_certificate
+  kube_exec               = module.stack.kube_exec
+  k8s_service_host        = module.stack.cluster_api_host
+  service_cidr            = module.stack.cluster_service_cidr
+  pod_cidr                = module.stack.cluster_pod_cidr
+  wait_for_nodes_count    = module.stack.cni_node_size
+  wait_for_nodes_selector = module.stack.cni_node_selector
+}
 ```
 
-The Azure module's README lists the `helm_set` values each CNI needs on AKS.
+Each stack output maps to one input:
+
+| Stack output             | Input                     |
+| ------------------------ | ------------------------- |
+| `cloud`                  | `cloud`                   |
+| `cluster_endpoint`       | `cluster_endpoint`        |
+| `cluster_ca_certificate` | `cluster_ca_certificate`  |
+| `kube_exec`              | `kube_exec`               |
+| `cluster_api_host`       | `k8s_service_host`        |
+| `cluster_service_cidr`   | `service_cidr`            |
+| `cluster_pod_cidr`       | `pod_cidr`                |
+| `cni_node_size`          | `wait_for_nodes_count`    |
+| `cni_node_selector`      | `wait_for_nodes_selector` |
 
 ## Choose a CNI
 
-| `cni`         | Chart                                   | Release name | Waits for nodes | Required inputs                          |
-| ------------- | --------------------------------------- | ------------ | --------------- | ---------------------------------------- |
-| `cilium`      | `https://helm.cilium.io/` cilium        | `cilium`     | no              | none                                     |
-| `kube-ovn`    | `oci://ghcr.io/pelotech/charts/kube-ovn` | `kube-ovn`   | yes             | `cluster_name`, `region`, `service_cidr` |
-| `kube-ovn-v2` | `oci://ghcr.io/kubeovn/charts/kube-ovn-v2` | `kube-ovn` | yes             | `cluster_name`, `region`, `service_cidr` |
-| `custom`      | `custom_chart`                          | `custom_chart.release_name`, else the chart name | no | `custom_chart`                 |
+| `cni`         | Chart                                      | Release name                                      | Waits for nodes | Required inputs                                  |
+| ------------- | ------------------------------------------ | ------------------------------------------------- | --------------- | ------------------------------------------------ |
+| `cilium`      | `https://helm.cilium.io/` cilium           | `cilium`                                          | no              | `pod_cidr` on azure                              |
+| `kube-ovn`    | `oci://ghcr.io/pelotech/charts/kube-ovn`   | `kube-ovn`                                        | yes             | `service_cidr`, a cluster connection, `pod_cidr` on azure |
+| `kube-ovn-v2` | `oci://ghcr.io/kubeovn/charts/kube-ovn-v2` | `kube-ovn`                                        | yes             | `service_cidr`, a cluster connection, `pod_cidr` on azure |
+| `custom`      | `custom_chart`                             | `custom_chart.release_name`, else the chart name  | no              | `custom_chart`                                   |
+
+A cluster connection is `cluster_endpoint`, `cluster_ca_certificate` and `kube_exec` together, or `cluster_name` and
+`region` for the AWS CLI fallback.
 
 Run `terraform output resolved_version`, `resolved_set` and `resolved_values` to see what the module installs.
 
@@ -73,8 +103,10 @@ The module depends only on the cluster, so Terraform runs it in parallel with no
 
 ### cilium
 
-`kube_proxy_replacement` is on by default. Set `k8s_service_host` to the API server host, without scheme, so Cilium
-reaches the API server without kube-proxy. The module turns on Hubble relay and UI; turn them off with `helm_set`.
+`kube_proxy_replacement` is on by default on aws and off on azure, where kube-proxy stays on. When it is on, set
+`k8s_service_host` to the API server host, without scheme, so Cilium reaches the API server without kube-proxy.
+On azure the module also sets `aksbyocni.enabled`. With `pod_cidr`, Cilium allocates pods from that range. The module
+turns on Hubble relay and UI; turn them off with `helm_set`.
 
 ### kube-ovn and kube-ovn-v2
 
@@ -87,6 +119,8 @@ module "cni_bootstrap" {
   service_cidr = module.foundation.eks_cluster_service_cidr
 }
 ```
+
+With `pod_cidr`, both charts take the pod CIDR and use its first address as the gateway.
 
 Both variants install under the release name `kube-ovn`, so a switch between them is an in-place upgrade. Their
 chart values differ, so `helm_set` and `helm_values` entries do not carry over.
@@ -126,7 +160,7 @@ module "cni_bootstrap" {
 ```
 
 A custom chart installs at once. If it needs registered nodes first, set `wait_for_nodes = true`,
-`wait_for_nodes_selector`, `cluster_name` and `region`.
+`wait_for_nodes_selector` and a cluster connection.
 
 Set `release_name` at the first install. A change replaces the release: Helm uninstalls the CNI and installs it again.
 
@@ -217,16 +251,21 @@ No modules.
 | <a name="input_bootstrap_generation"></a> [bootstrap\_generation](#input\_bootstrap\_generation) | Change this value to run the node poll and the Helm upgrade again, for example after you replace the master node. Change it only after the old master node is gone. | `string` | `""` | no |
 | <a name="input_chart_version"></a> [chart\_version](#input\_chart\_version) | Chart version to install. null uses the module default for the selected cni; ignored for custom, which uses custom\_chart.version. | `string` | `null` | no |
 | <a name="input_cleanup_on_fail"></a> [cleanup\_on\_fail](#input\_cleanup\_on\_fail) | Deletes resources created during a failed upgrade (helm --cleanup-on-fail). | `bool` | `true` | no |
-| <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Name of the cluster, for the node poll. Required when wait\_for\_nodes is true. | `string` | `""` | no |
+| <a name="input_cloud"></a> [cloud](#input\_cloud) | Cloud the cluster runs on: aws or azure. Sets the CNI defaults that differ per cloud. | `string` | `"aws"` | no |
+| <a name="input_cluster_ca_certificate"></a> [cluster\_ca\_certificate](#input\_cluster\_ca\_certificate) | Base64 encoded cluster CA certificate, for the node poll. | `string` | `""` | no |
+| <a name="input_cluster_endpoint"></a> [cluster\_endpoint](#input\_cluster\_endpoint) | API server URL, for the node poll. Set it together with cluster\_ca\_certificate and kube\_exec to poll without a cloud CLI. | `string` | `""` | no |
+| <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Name of the EKS cluster, for the node poll's AWS CLI fallback. Required when wait\_for\_nodes is true and kube\_exec is not set. | `string` | `""` | no |
 | <a name="input_cni"></a> [cni](#input\_cni) | CNI to install: cilium, kube-ovn (v1 chart), kube-ovn-v2 or custom. custom installs the chart in custom\_chart. | `string` | `"cilium"` | no |
 | <a name="input_create"></a> [create](#input\_create) | Installs the CNI Helm release. Set false to create nothing. | `bool` | `true` | no |
 | <a name="input_custom_chart"></a> [custom\_chart](#input\_custom\_chart) | Chart to install when cni = custom. release\_name defaults to the chart name; changing it later replaces the release. | <pre>object({<br/>    repository   = string<br/>    chart        = string<br/>    version      = string<br/>    release_name = optional(string)<br/>  })</pre> | `null` | no |
 | <a name="input_helm_set"></a> [helm\_set](#input\_helm\_set) | Extra Helm --set values, applied after the module defaults. | `list(object({ name = string, value = string }))` | `[]` | no |
 | <a name="input_helm_values"></a> [helm\_values](#input\_helm\_values) | Extra Helm values documents, applied after the module defaults. | `list(string)` | `[]` | no |
 | <a name="input_k8s_service_host"></a> [k8s\_service\_host](#input\_k8s\_service\_host) | API server host without scheme, for Cilium kube-proxy replacement. Ignored unless cni = cilium and kube\_proxy\_replacement is true. | `string` | `""` | no |
-| <a name="input_kube_proxy_replacement"></a> [kube\_proxy\_replacement](#input\_kube\_proxy\_replacement) | Turns on Cilium kube-proxy replacement. When true, k8s\_service\_host sets k8sServiceHost and k8sServicePort. | `bool` | `true` | no |
+| <a name="input_kube_exec"></a> [kube\_exec](#input\_kube\_exec) | Exec credential plugin the node poll authenticates with. Same shape as the helm provider's kubernetes.exec. | <pre>object({<br/>    api_version = string<br/>    command     = string<br/>    args        = optional(list(string), [])<br/>    env         = optional(map(string), {})<br/>  })</pre> | `null` | no |
+| <a name="input_kube_proxy_replacement"></a> [kube\_proxy\_replacement](#input\_kube\_proxy\_replacement) | Turns on Cilium kube-proxy replacement. null means true on aws and false on azure, where kube-proxy stays on. When true, k8s\_service\_host sets k8sServiceHost and k8sServicePort. | `bool` | `null` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | Namespace of the Helm release. | `string` | `"kube-system"` | no |
-| <a name="input_region"></a> [region](#input\_region) | Region of the cluster, for the node poll. Required when wait\_for\_nodes is true. | `string` | `""` | no |
+| <a name="input_pod_cidr"></a> [pod\_cidr](#input\_pod\_cidr) | Pod CIDR the CNI allocates from. Required on azure, where AKS routes to it; leave empty on aws. | `string` | `""` | no |
+| <a name="input_region"></a> [region](#input\_region) | AWS region of the cluster, for the node poll's AWS CLI fallback. Required when wait\_for\_nodes is true and kube\_exec is not set. | `string` | `""` | no |
 | <a name="input_replace"></a> [replace](#input\_replace) | Reuses the name of a failed or pending release (helm install --replace). Set true for one apply to repair a stuck release, then set it back. | `bool` | `false` | no |
 | <a name="input_service_cidr"></a> [service\_cidr](#input\_service\_cidr) | Service CIDR of the cluster, passed to the kube-ovn charts. Required for kube-ovn and kube-ovn-v2. | `string` | `""` | no |
 | <a name="input_wait_for_nodes"></a> [wait\_for\_nodes](#input\_wait\_for\_nodes) | Waits for nodes to register before the install. null means true for kube-ovn and kube-ovn-v2, false otherwise. | `bool` | `null` | no |

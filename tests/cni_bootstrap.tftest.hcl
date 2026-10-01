@@ -337,3 +337,151 @@ run "create_false_installs_nothing" {
     error_message = "create=false must install no helm release"
   }
 }
+
+run "azure_cilium_defaults" {
+  command = plan
+
+  variables {
+    cloud    = "azure"
+    cni      = "cilium"
+    pod_cidr = "10.244.0.0/16"
+  }
+
+  assert {
+    condition     = anytrue([for s in output.resolved_set : s.name == "kubeProxyReplacement" && s.value == "false"])
+    error_message = "on azure cilium must leave kube-proxy on by default"
+  }
+  assert {
+    condition     = anytrue([for s in output.resolved_set : s.name == "aksbyocni.enabled" && s.value == "true"])
+    error_message = "on azure cilium must enable the AKS bring-your-own-CNI mode"
+  }
+  assert {
+    condition     = anytrue([for s in output.resolved_set : s.name == "ipam.operator.clusterPoolIPv4PodCIDRList" && s.value == "{10.244.0.0/16}"])
+    error_message = "cilium must allocate pods from pod_cidr when it is set"
+  }
+  assert {
+    condition     = !anytrue([for s in output.resolved_set : s.name == "k8sServiceHost"])
+    error_message = "without kube-proxy replacement cilium must not set k8sServiceHost"
+  }
+}
+
+run "aws_cilium_has_no_azure_values" {
+  command = plan
+
+  variables {
+    cni = "cilium"
+  }
+
+  assert {
+    condition     = !anytrue([for s in output.resolved_set : s.name == "aksbyocni.enabled" || s.name == "ipam.operator.clusterPoolIPv4PodCIDRList"])
+    error_message = "on aws cilium must keep its previous defaults"
+  }
+}
+
+run "azure_kube_ovn_v2_polls_with_kube_exec" {
+  command = plan
+
+  variables {
+    cloud                  = "azure"
+    cni                    = "kube-ovn-v2"
+    cluster_name           = ""
+    region                 = ""
+    pod_cidr               = "10.244.0.0/16"
+    cluster_endpoint       = "https://platformdev.hcp.usgovvirginia.cx.aks.containerservice.azure.us:443"
+    cluster_ca_certificate = "Y2E="
+    kube_exec = {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "kubelogin"
+      args        = ["get-token", "--login", "azurecli"]
+      env         = { AAD_LOGIN_METHOD = "azurecli" }
+    }
+  }
+
+  assert {
+    condition     = length(terraform_data.wait_for_nodes) == 1
+    error_message = "kube-ovn-v2 must still wait for the master node on azure"
+  }
+  assert {
+    condition     = yamldecode(terraform_data.wait_for_nodes[0].input).clusters[0].cluster.server == "https://platformdev.hcp.usgovvirginia.cx.aks.containerservice.azure.us:443"
+    error_message = "the poll kubeconfig must point at cluster_endpoint"
+  }
+  assert {
+    condition     = yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user.exec.command == "kubelogin" && yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user.exec.env[0].name == "AAD_LOGIN_METHOD"
+    error_message = "the poll kubeconfig must authenticate with kube_exec"
+  }
+  assert {
+    condition     = yamldecode(output.resolved_values[0]).networking.pods.cidr.v4 == "10.244.0.0/16" && yamldecode(output.resolved_values[0]).networking.pods.gateways.v4 == "10.244.0.1"
+    error_message = "kube-ovn-v2 must take the pod CIDR and its first address as gateway from pod_cidr"
+  }
+}
+
+run "kube_ovn_v1_takes_pod_cidr" {
+  command = plan
+
+  variables {
+    cni      = "kube-ovn"
+    pod_cidr = "10.244.0.0/16"
+  }
+
+  assert {
+    condition     = yamldecode(output.resolved_values[0]).ipv4.POD_CIDR == "10.244.0.0/16" && yamldecode(output.resolved_values[0]).ipv4.POD_GATEWAY == "10.244.0.1"
+    error_message = "kube-ovn v1 must take POD_CIDR and POD_GATEWAY from pod_cidr"
+  }
+}
+
+run "aws_kube_ovn_without_pod_cidr_omits_it" {
+  command = plan
+
+  variables {
+    cni = "kube-ovn-v2"
+  }
+
+  assert {
+    condition     = !can(yamldecode(output.resolved_values[0]).networking.pods)
+    error_message = "without pod_cidr the kube-ovn values must leave the chart's pod CIDR alone"
+  }
+}
+
+run "azure_requires_pod_cidr" {
+  command = plan
+
+  variables {
+    cloud = "azure"
+    cni   = "cilium"
+  }
+
+  expect_failures = [var.pod_cidr]
+}
+
+run "cluster_connection_must_be_complete" {
+  command = plan
+
+  variables {
+    cni              = "cilium"
+    cluster_endpoint = "https://api.example.com"
+  }
+
+  expect_failures = [var.cluster_endpoint]
+}
+
+run "kube_exec_replaces_cluster_name_and_region" {
+  command = plan
+
+  variables {
+    cni                    = "kube-ovn-v2"
+    cluster_name           = ""
+    region                 = ""
+    cluster_endpoint       = "https://api.example.com"
+    cluster_ca_certificate = "Y2E="
+    kube_exec = {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", "test"]
+    }
+  }
+
+  assert {
+    condition     = length(terraform_data.wait_for_nodes) == 1
+    error_message = "with kube_exec the poll must run without cluster_name and region"
+  }
+}

@@ -3,6 +3,10 @@
 MASTER_NODES_LABEL: "${master_nodes_label}"
 ipv4:
   SVC_CIDR: "${service_cidr}"
+%{ if pod_cidr != "" ~}
+  POD_CIDR: "${pod_cidr}"
+  POD_GATEWAY: "${pod_gateway}"
+%{ endif ~}
   PINGER_EXTERNAL_ADDRESS: "8.8.8.8"
   PINGER_EXTERNAL_DOMAIN: "google.com."
 func:

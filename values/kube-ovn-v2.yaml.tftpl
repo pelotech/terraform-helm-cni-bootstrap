@@ -26,6 +26,13 @@ networking:
   services:
     cidr:
       v4: "${service_cidr}"
+%{ if pod_cidr != "" ~}
+  pods:
+    cidr:
+      v4: "${pod_cidr}"
+    gateways:
+      v4: "${pod_gateway}"
+%{ endif ~}
 pinger:
   targets:
     externalAddresses:
