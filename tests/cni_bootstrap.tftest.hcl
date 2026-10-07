@@ -342,9 +342,10 @@ run "azure_cilium_defaults" {
   command = plan
 
   variables {
-    cloud    = "azure"
-    cni      = "cilium"
-    pod_cidr = "10.244.0.0/16"
+    cloud            = "azure"
+    cni              = "cilium"
+    pod_cidr         = "10.244.0.0/16"
+    k8s_service_host = "api.example"
   }
 
   assert {

@@ -35,11 +35,11 @@ variable "cloud" {
 variable "cluster_endpoint" {
   type        = string
   default     = ""
-  description = "API server URL, for the node poll. Set it together with cluster_ca_certificate and kube_exec to poll without a cloud CLI."
+  description = "API server URL, for the node poll. Set it together with cluster_ca_certificate and either kube_exec or client_certificate and client_key to poll without a cloud CLI."
 
   validation {
-    condition     = (var.cluster_endpoint != "") == (var.cluster_ca_certificate != "") && (var.cluster_endpoint != "") == (var.kube_exec != null)
-    error_message = "cluster_endpoint, cluster_ca_certificate and kube_exec must be set together."
+    condition     = (var.cluster_endpoint != "") == (var.cluster_ca_certificate != "") && (var.cluster_endpoint != "") == local.poll_has_credential
+    error_message = "cluster_endpoint and cluster_ca_certificate must be set together with kube_exec, or with client_certificate and client_key."
   }
 }
 
@@ -58,6 +58,36 @@ variable "kube_exec" {
   })
   default     = null
   description = "Exec credential plugin the node poll authenticates with. Same shape as the helm provider's kubernetes.exec."
+}
+
+variable "client_certificate" {
+  type        = string
+  default     = ""
+  description = "Base64 encoded PEM client certificate the node poll authenticates with when kube_exec is not set. Pair it with client_key."
+}
+
+variable "client_key" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Base64 encoded PEM private key of client_certificate."
+}
+
+variable "distribution" {
+  type        = string
+  default     = null
+  description = "Kubernetes distribution: eks, aks or rke2. null means the cloud's managed one, eks on aws and aks on azure. aks sets the AKS bring-your-own-CNI value and keeps kube-proxy on."
+
+  validation {
+    condition     = var.distribution == null ? true : contains(["eks", "aks", "rke2"], var.distribution)
+    error_message = "distribution must be one of: eks, aks, rke2."
+  }
+}
+
+variable "k8s_service_port" {
+  type        = string
+  default     = "443"
+  description = "API server port for Cilium kube-proxy replacement, next to k8s_service_host. RKE2 nodes answer on 6443."
 }
 
 variable "pod_cidr" {
@@ -114,7 +144,7 @@ variable "service_cidr" {
 variable "kube_proxy_replacement" {
   type        = bool
   default     = null
-  description = "Turns on Cilium kube-proxy replacement. null means true on aws and false on azure, where kube-proxy stays on. When true, k8s_service_host sets k8sServiceHost and k8sServicePort."
+  description = "Turns on Cilium kube-proxy replacement. null means true, except on aks where kube-proxy stays on. When true, k8s_service_host sets k8sServiceHost and k8sServicePort."
 }
 
 variable "chart_version" {
@@ -168,7 +198,7 @@ variable "bootstrap_generation" {
 variable "wait_for_nodes" {
   type        = bool
   default     = null
-  description = "Waits for nodes to register before the install. null means true for kube-ovn and kube-ovn-v2, false otherwise."
+  description = "Waits for nodes to register before the install. null means true for kube-ovn and kube-ovn-v2, and whenever you pass a non-empty wait_for_nodes_selector; false otherwise."
 }
 
 variable "wait_for_nodes_selector" {
