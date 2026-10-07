@@ -80,7 +80,7 @@ run "client_certificate_renders_into_the_poll_kubeconfig" {
     client_key             = "a2V5"
   }
   assert {
-    condition     = strcontains(terraform_data.wait_for_nodes[0].input, "client-certificate-data") && strcontains(terraform_data.wait_for_nodes[0].input, "Y2VydA==") && !strcontains(terraform_data.wait_for_nodes[0].input, "exec")
+    condition     = yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user["client-certificate-data"] == "Y2VydA==" && !contains(keys(yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user), "exec")
     error_message = "the poll authenticates with the client certificate when there is no exec plugin"
   }
 }

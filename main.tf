@@ -91,39 +91,13 @@ locals {
   # With kube_exec or a client certificate the poll gets a rendered kubeconfig; without either, it falls back to the AWS CLI.
   poll_has_credential = var.kube_exec != null || (var.client_certificate != "" && var.client_key != "")
   poll_uses_aws_cli   = local.wait_for_nodes && !local.poll_has_credential
-  poll_kubeconfig = !local.poll_has_credential ? "" : yamlencode({
-    apiVersion = "v1"
-    kind       = "Config"
-    clusters = [{
-      name = "cluster"
-      cluster = {
-        server                       = var.cluster_endpoint
-        "certificate-authority-data" = var.cluster_ca_certificate
-      }
-    }]
-    users = [{
-      name = "user"
-      # Two merges, because a conditional cannot return objects of different shapes.
-      user = merge(
-        var.kube_exec == null ? {} : {
-          exec = {
-            apiVersion         = var.kube_exec.api_version
-            command            = var.kube_exec.command
-            args               = var.kube_exec.args
-            env                = [for k, v in var.kube_exec.env : { name = k, value = v }]
-            interactiveMode    = "Never"
-            provideClusterInfo = false
-          }
-        },
-        var.kube_exec != null ? {} : {
-          "client-certificate-data" = var.client_certificate
-          "client-key-data"         = var.client_key
-        },
-      )
-    }]
-    contexts          = [{ name = "cluster", context = { cluster = "cluster", user = "user" } }]
-    "current-context" = "cluster"
-  })
+  poll_kubeconfig = local.poll_has_credential ? templatefile("${path.module}/templates/kubeconfig.yaml.tftpl", {
+    cluster_endpoint       = var.cluster_endpoint
+    cluster_ca_certificate = var.cluster_ca_certificate
+    kube_exec              = var.kube_exec
+    client_certificate     = var.client_certificate
+    client_key             = var.client_key
+  }) : ""
 }
 
 moved {
