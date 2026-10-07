@@ -15,20 +15,8 @@ locals {
       timeout            = 600
       node_selector      = ""
       needs_service_cidr = false
-      values_template    = null
-      set = concat(
-        [
-          { name = "kubeProxyReplacement", value = tostring(local.kube_proxy_replacement) },
-          { name = "hubble.relay.enabled", value = "true" },
-          { name = "hubble.ui.enabled", value = "true" },
-        ],
-        local.kube_proxy_replacement && var.k8s_service_host != "" ? [
-          { name = "k8sServiceHost", value = var.k8s_service_host },
-          { name = "k8sServicePort", value = var.k8s_service_port },
-        ] : [],
-        local.distribution == "aks" ? [{ name = "aksbyocni.enabled", value = "true" }] : [],
-        var.pod_cidr != "" ? [{ name = "ipam.operator.clusterPoolIPv4PodCIDRList", value = "{${var.pod_cidr}}" }] : [],
-      )
+      values_template    = "cilium.yaml.tftpl"
+      set                = []
     }
     "kube-ovn" = {
       release_name = "kube-ovn"
@@ -78,12 +66,16 @@ locals {
   version = coalesce(var.chart_version, local.cni_profile.version)
   values = concat(
     local.cni_profile.values_template == null ? [] : [templatefile("${path.module}/values/${local.cni_profile.values_template}", {
-      service_cidr       = var.service_cidr
-      pod_cidr           = var.pod_cidr
-      pod_gateway        = var.pod_cidr != "" ? cidrhost(var.pod_cidr, 1) : ""
-      master_nodes_label = local.node_selector
-      master_label_key   = local.master_label[0]
-      master_label_value = local.master_label[1]
+      distribution           = local.distribution
+      kube_proxy_replacement = local.kube_proxy_replacement
+      k8s_service_host       = var.k8s_service_host
+      k8s_service_port       = var.k8s_service_port
+      service_cidr           = var.service_cidr
+      pod_cidr               = var.pod_cidr
+      pod_gateway            = var.pod_cidr != "" ? cidrhost(var.pod_cidr, 1) : ""
+      master_nodes_label     = local.node_selector
+      master_label_key       = local.master_label[0]
+      master_label_value     = local.master_label[1]
     })],
     var.helm_values,
   )

@@ -12,11 +12,11 @@ run "rke2_on_azure_turns_kube_proxy_replacement_on_without_aksbyocni" {
     k8s_service_port = "6443"
   }
   assert {
-    condition     = contains(output.resolved_set, { name = "kubeProxyReplacement", value = "true" }) && contains(output.resolved_set, { name = "k8sServiceHost", value = "127.0.0.1" }) && contains(output.resolved_set, { name = "k8sServicePort", value = "6443" })
+    condition     = yamldecode(output.resolved_values[0]).kubeProxyReplacement == true && yamldecode(output.resolved_values[0]).k8sServiceHost == "127.0.0.1" && yamldecode(output.resolved_values[0]).k8sServicePort == "6443"
     error_message = "rke2 defaults kube-proxy replacement on and uses the given host and port"
   }
   assert {
-    condition     = !anytrue([for s in output.resolved_set : s.name == "aksbyocni.enabled"])
+    condition     = !contains(keys(yamldecode(output.resolved_values[0])), "aksbyocni")
     error_message = "aksbyocni is an AKS setting, not an RKE2 one"
   }
 }
@@ -109,7 +109,7 @@ run "the_managed_distribution_follows_the_cloud" {
     pod_cidr = "10.244.0.0/16"
   }
   assert {
-    condition     = contains(output.resolved_set, { name = "aksbyocni.enabled", value = "true" }) && contains(output.resolved_set, { name = "kubeProxyReplacement", value = "false" })
+    condition     = yamldecode(output.resolved_values[0]).aksbyocni.enabled == true && yamldecode(output.resolved_values[0]).kubeProxyReplacement == false
     error_message = "azure without a distribution means aks"
   }
 }

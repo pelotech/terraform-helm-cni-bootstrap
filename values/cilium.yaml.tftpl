@@ -1,0 +1,25 @@
+# Module defaults for the cilium chart. Override keys with helm_set or helm_values.
+hubble:
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+# From the module inputs.
+kubeProxyReplacement: ${kube_proxy_replacement}
+%{ if kube_proxy_replacement && k8s_service_host != "" ~}
+k8sServiceHost: ${k8s_service_host}
+k8sServicePort: "${k8s_service_port}"
+%{ endif ~}
+%{ if pod_cidr != "" ~}
+ipam:
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - ${pod_cidr}
+%{ endif ~}
+
+# Per distribution.
+%{ if distribution == "aks" ~}
+aksbyocni:
+  enabled: true
+%{ endif ~}
