@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.1.0...v1.1.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* record the node poll's endpoint and credential kind instead of its kubeconfig ([#8](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/8)) ([b200078](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/b200078c6372fe2f78ca4d8b499f62e2ae42de28))
+
 ## [1.1.0](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.0.0...v1.1.0) (2026-10-08)
 
 
