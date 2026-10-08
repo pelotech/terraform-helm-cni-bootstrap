@@ -1,6 +1,7 @@
 locals {
   kube_ovn_master_label  = "kube-ovn/role=master"
-  kube_proxy_replacement = coalesce(var.kube_proxy_replacement, var.cloud == "aws")
+  distribution           = coalesce(var.distribution, { aws = "eks", azure = "aks" }[var.cloud])
+  kube_proxy_replacement = coalesce(var.kube_proxy_replacement, local.distribution != "aks")
 
   # What each cni value installs. set is the module's default --set list; values_template its default values file.
   # node_selector is the label the node poll waits on; empty means no poll unless wait_for_nodes = true.
@@ -14,20 +15,8 @@ locals {
       timeout            = 600
       node_selector      = ""
       needs_service_cidr = false
-      values_template    = null
-      set = concat(
-        [
-          { name = "kubeProxyReplacement", value = tostring(local.kube_proxy_replacement) },
-          { name = "hubble.relay.enabled", value = "true" },
-          { name = "hubble.ui.enabled", value = "true" },
-        ],
-        local.kube_proxy_replacement && var.k8s_service_host != "" ? [
-          { name = "k8sServiceHost", value = var.k8s_service_host },
-          { name = "k8sServicePort", value = "443" },
-        ] : [],
-        var.cloud == "azure" ? [{ name = "aksbyocni.enabled", value = "true" }] : [],
-        var.pod_cidr != "" ? [{ name = "ipam.operator.clusterPoolIPv4PodCIDRList", value = "{${var.pod_cidr}}" }] : [],
-      )
+      values_template    = "cilium.yaml.tftpl"
+      set                = []
     }
     "kube-ovn" = {
       release_name = "kube-ovn"
@@ -68,20 +57,25 @@ locals {
   }
   cni_profile = local.cni_profiles[var.cni]
 
-  wait_for_nodes = coalesce(var.wait_for_nodes, local.cni_profile.node_selector != "")
+  # The poll runs for the profiles that need it, and whenever a stack passes a selector, such as RKE2's control-plane label.
   node_selector  = var.wait_for_nodes_selector != null ? var.wait_for_nodes_selector : local.cni_profile.node_selector
+  wait_for_nodes = coalesce(var.wait_for_nodes, local.cni_profile.node_selector != "" || local.node_selector != "")
   # kube-ovn pins its control plane to the same label the poll waits on. The v2 chart needs it split into key and value.
   master_label = try(regex("^([^=]+)=([^=]*)$", local.node_selector), ["", ""])
 
   version = coalesce(var.chart_version, local.cni_profile.version)
   values = concat(
     local.cni_profile.values_template == null ? [] : [templatefile("${path.module}/values/${local.cni_profile.values_template}", {
-      service_cidr       = var.service_cidr
-      pod_cidr           = var.pod_cidr
-      pod_gateway        = var.pod_cidr != "" ? cidrhost(var.pod_cidr, 1) : ""
-      master_nodes_label = local.node_selector
-      master_label_key   = local.master_label[0]
-      master_label_value = local.master_label[1]
+      distribution           = local.distribution
+      kube_proxy_replacement = local.kube_proxy_replacement
+      k8s_service_host       = var.k8s_service_host
+      k8s_service_port       = var.k8s_service_port
+      service_cidr           = var.service_cidr
+      pod_cidr               = var.pod_cidr
+      pod_gateway            = var.pod_cidr != "" ? cidrhost(var.pod_cidr, 1) : ""
+      master_nodes_label     = local.node_selector
+      master_label_key       = local.master_label[0]
+      master_label_value     = local.master_label[1]
     })],
     var.helm_values,
   )
@@ -94,34 +88,16 @@ locals {
 }
 
 locals {
-  # With kube_exec the poll gets a rendered kubeconfig; without it, it falls back to the AWS CLI.
-  poll_uses_aws_cli = local.wait_for_nodes && var.kube_exec == null
-  poll_kubeconfig = var.kube_exec == null ? "" : yamlencode({
-    apiVersion = "v1"
-    kind       = "Config"
-    clusters = [{
-      name = "cluster"
-      cluster = {
-        server                       = var.cluster_endpoint
-        "certificate-authority-data" = var.cluster_ca_certificate
-      }
-    }]
-    users = [{
-      name = "user"
-      user = {
-        exec = {
-          apiVersion         = var.kube_exec.api_version
-          command            = var.kube_exec.command
-          args               = var.kube_exec.args
-          env                = [for k, v in var.kube_exec.env : { name = k, value = v }]
-          interactiveMode    = "Never"
-          provideClusterInfo = false
-        }
-      }
-    }]
-    contexts          = [{ name = "cluster", context = { cluster = "cluster", user = "user" } }]
-    "current-context" = "cluster"
-  })
+  # With kube_exec or a client certificate the poll gets a rendered kubeconfig; without either, it falls back to the AWS CLI.
+  poll_has_credential = var.kube_exec != null || (var.client_certificate != "" && var.client_key != "")
+  poll_uses_aws_cli   = local.wait_for_nodes && !local.poll_has_credential
+  poll_kubeconfig = local.poll_has_credential ? templatefile("${path.module}/templates/kubeconfig.yaml.tftpl", {
+    cluster_endpoint       = var.cluster_endpoint
+    cluster_ca_certificate = var.cluster_ca_certificate
+    kube_exec              = var.kube_exec
+    client_certificate     = var.client_certificate
+    client_key             = var.client_key
+  }) : ""
 }
 
 moved {
@@ -133,7 +109,7 @@ moved {
 resource "terraform_data" "wait_for_nodes" {
   count = var.create && local.wait_for_nodes ? 1 : 0
 
-  # The kubeconfig is recorded so a plan shows what the poll connects with. Credentials stay in the exec plugin.
+  # The kubeconfig is recorded so a plan shows what the poll connects with. With a client certificate it holds the key, which the stack's own state already carries.
   input            = local.poll_kubeconfig
   triggers_replace = [var.bootstrap_generation, var.cluster_endpoint, var.cluster_name, var.region, local.node_selector, var.wait_for_nodes_count]
 

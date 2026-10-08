@@ -32,12 +32,16 @@ run "cilium_defaults" {
     error_message = "defaults must be atomic + cleanup_on_fail on, replace off"
   }
   assert {
-    condition     = anytrue([for s in output.resolved_set : s.name == "kubeProxyReplacement" && s.value == "true"])
+    condition     = yamldecode(output.resolved_values[0]).kubeProxyReplacement == true
     error_message = "cilium must enable kubeProxyReplacement by default"
   }
   assert {
-    condition     = anytrue([for s in output.resolved_set : s.name == "k8sServiceHost" && s.value == "api.example.com"])
-    error_message = "cilium with kube-proxy replacement must set k8sServiceHost from k8s_service_host"
+    condition     = yamldecode(output.resolved_values[0]).k8sServiceHost == "api.example.com" && yamldecode(output.resolved_values[0]).k8sServicePort == "443"
+    error_message = "cilium with kube-proxy replacement must set k8sServiceHost and k8sServicePort from the inputs"
+  }
+  assert {
+    condition     = yamldecode(output.resolved_values[0]).hubble.relay.enabled == true && yamldecode(output.resolved_values[0]).hubble.ui.enabled == true
+    error_message = "hubble relay and ui are on by default"
   }
   assert {
     condition     = !anytrue([for s in output.resolved_set : s.name == "cniBootstrapGeneration"])
@@ -55,7 +59,7 @@ run "cilium_without_kube_proxy_replacement_omits_api_host" {
   }
 
   assert {
-    condition     = !anytrue([for s in output.resolved_set : s.name == "k8sServiceHost"])
+    condition     = !contains(keys(yamldecode(output.resolved_values[0])), "k8sServiceHost")
     error_message = "k8sServiceHost must not be set when kube_proxy_replacement is false"
   }
 }
@@ -342,25 +346,26 @@ run "azure_cilium_defaults" {
   command = plan
 
   variables {
-    cloud    = "azure"
-    cni      = "cilium"
-    pod_cidr = "10.244.0.0/16"
+    cloud            = "azure"
+    cni              = "cilium"
+    pod_cidr         = "10.244.0.0/16"
+    k8s_service_host = "api.example"
   }
 
   assert {
-    condition     = anytrue([for s in output.resolved_set : s.name == "kubeProxyReplacement" && s.value == "false"])
+    condition     = yamldecode(output.resolved_values[0]).kubeProxyReplacement == false
     error_message = "on azure cilium must leave kube-proxy on by default"
   }
   assert {
-    condition     = anytrue([for s in output.resolved_set : s.name == "aksbyocni.enabled" && s.value == "true"])
+    condition     = yamldecode(output.resolved_values[0]).aksbyocni.enabled == true
     error_message = "on azure cilium must enable the AKS bring-your-own-CNI mode"
   }
   assert {
-    condition     = anytrue([for s in output.resolved_set : s.name == "ipam.operator.clusterPoolIPv4PodCIDRList" && s.value == "{10.244.0.0/16}"])
+    condition     = tolist(yamldecode(output.resolved_values[0]).ipam.operator.clusterPoolIPv4PodCIDRList) == tolist(["10.244.0.0/16"])
     error_message = "cilium must allocate pods from pod_cidr when it is set"
   }
   assert {
-    condition     = !anytrue([for s in output.resolved_set : s.name == "k8sServiceHost"])
+    condition     = !contains(keys(yamldecode(output.resolved_values[0])), "k8sServiceHost")
     error_message = "without kube-proxy replacement cilium must not set k8sServiceHost"
   }
 }
@@ -373,7 +378,7 @@ run "aws_cilium_has_no_azure_values" {
   }
 
   assert {
-    condition     = !anytrue([for s in output.resolved_set : s.name == "aksbyocni.enabled" || s.name == "ipam.operator.clusterPoolIPv4PodCIDRList"])
+    condition     = !contains(keys(yamldecode(output.resolved_values[0])), "aksbyocni") && !contains(keys(yamldecode(output.resolved_values[0])), "ipam")
     error_message = "on aws cilium must keep its previous defaults"
   }
 }
