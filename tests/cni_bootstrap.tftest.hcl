@@ -407,12 +407,12 @@ run "azure_kube_ovn_v2_polls_with_kube_exec" {
     error_message = "kube-ovn-v2 must still wait for the master node on azure"
   }
   assert {
-    condition     = yamldecode(terraform_data.wait_for_nodes[0].input).clusters[0].cluster.server == "https://platformdev.hcp.usgovvirginia.cx.aks.containerservice.azure.us:443"
-    error_message = "the poll kubeconfig must point at cluster_endpoint"
+    condition     = terraform_data.wait_for_nodes[0].input.cluster_endpoint == "https://platformdev.hcp.usgovvirginia.cx.aks.containerservice.azure.us:443"
+    error_message = "the poll record must name cluster_endpoint"
   }
   assert {
-    condition     = yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user.exec.command == "kubelogin" && yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user.exec.env[0].name == "AAD_LOGIN_METHOD"
-    error_message = "the poll kubeconfig must authenticate with kube_exec"
+    condition     = terraform_data.wait_for_nodes[0].input.auth.kind == "exec" && terraform_data.wait_for_nodes[0].input.auth.command == "kubelogin" && terraform_data.wait_for_nodes[0].input.auth.env.AAD_LOGIN_METHOD == "azurecli"
+    error_message = "the poll record must show the exec plugin it authenticates with"
   }
   assert {
     condition     = yamldecode(output.resolved_values[0]).networking.pods.cidr.v4 == "10.244.0.0/16" && yamldecode(output.resolved_values[0]).networking.pods.gateways.v4 == "10.244.0.1"
