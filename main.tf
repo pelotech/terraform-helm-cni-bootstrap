@@ -98,6 +98,21 @@ locals {
     client_certificate     = var.client_certificate
     client_key             = var.client_key
   }) : ""
+  # What the poll connects with, without the credential itself: a plan prints the recorded input of a changed resource.
+  poll_record = {
+    cluster_endpoint = var.cluster_endpoint
+    auth = var.kube_exec != null ? {
+      kind    = "exec"
+      command = var.kube_exec.command
+      args    = var.kube_exec.args
+      env     = var.kube_exec.env
+      } : {
+      kind    = local.poll_has_credential ? "client-certificate" : "aws-cli"
+      command = null
+      args    = null
+      env     = null
+    }
+  }
 }
 
 moved {
@@ -109,8 +124,7 @@ moved {
 resource "terraform_data" "wait_for_nodes" {
   count = var.create && local.wait_for_nodes ? 1 : 0
 
-  # The kubeconfig is recorded so a plan shows what the poll connects with. With a client certificate it holds the key, which the stack's own state already carries.
-  input            = local.poll_kubeconfig
+  input            = local.poll_record
   triggers_replace = [var.bootstrap_generation, var.cluster_endpoint, var.cluster_name, var.region, local.node_selector, var.wait_for_nodes_count]
 
   provisioner "local-exec" {

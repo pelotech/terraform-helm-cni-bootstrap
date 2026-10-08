@@ -38,6 +38,10 @@ run "a_selector_from_the_stack_turns_the_poll_on" {
     condition     = length(terraform_data.wait_for_nodes) == 1
     error_message = "cilium has no selector of its own, so the one the stack passes must start the poll"
   }
+  assert {
+    condition     = terraform_data.wait_for_nodes[0].input.auth.kind == "client-certificate" && !strcontains(jsonencode(terraform_data.wait_for_nodes[0].input), var.client_key)
+    error_message = "the poll record names the credential kind and holds no key"
+  }
 }
 
 run "kube_ovn_with_an_empty_selector_still_polls" {
@@ -80,7 +84,7 @@ run "client_certificate_renders_into_the_poll_kubeconfig" {
     client_key             = "a2V5"
   }
   assert {
-    condition     = yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user["client-certificate-data"] == "Y2VydA==" && !contains(keys(yamldecode(terraform_data.wait_for_nodes[0].input).users[0].user), "exec")
+    condition     = terraform_data.wait_for_nodes[0].input.auth.kind == "client-certificate" && terraform_data.wait_for_nodes[0].input.auth.command == null && !strcontains(jsonencode(terraform_data.wait_for_nodes[0].input), "Y2VydA==")
     error_message = "the poll authenticates with the client certificate when there is no exec plugin"
   }
 }
