@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.0.0...v1.1.0) (2026-10-08)
+
+
+### Features
+
+* accept a client certificate and RKE2 defaults for the node poll ([#6](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/6)) ([a02a5ad](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/a02a5ad297b5246e8657ad93632b95817501a9fa))
+
+
+### Chores
+
+* **deps:** bump nixpkgs from `e554fab` to `e158d9e` ([#5](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/5)) ([72f2a62](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/72f2a629e60f814116c564d58b6270f955837f8c))
+
 ## 1.0.0 (2026-10-03)
 
 
