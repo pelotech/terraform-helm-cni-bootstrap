@@ -36,7 +36,7 @@ locals {
       repository   = "oci://ghcr.io/kubeovn/charts"
       chart        = "kube-ovn-v2"
       # renovate: datasource=docker depName=ghcr.io/kubeovn/charts/kube-ovn-v2
-      version            = "v1.16.10"
+      version            = "v1.16.12"
       timeout            = 900
       node_selector      = local.kube_ovn_master_label
       needs_service_cidr = true
