@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.1.3](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.1.2...v1.1.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* **cilium:** bootstrap cilium on a fresh EKS cluster ([b252640](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/b2526404b420b9005b08e07b619ca59c6601c2fd))
+* **cilium:** disable hubble by default and tolerate CriticalAddonsOnly on operator ([0bf6b41](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/0bf6b4128209136861c8c11959a6317acedc767d))
+* wait for access grants before the first install on a new cluster ([c148364](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/c1483645e3d7962051ce928e8bb0c52b93f47d3f))
+
+
+### Chores
+
+* **deps:** bump nixpkgs from `151fa4e` to `55bfb4d` ([#22](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/22)) ([fd6d918](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/fd6d9188f069ed8b2a4371182952d90505a90a3a))
+* **deps:** update cachix/install-nix-action action to v31.11.3 ([#23](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/23)) ([a96b1fe](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/a96b1fe76addf323fb7d03f8ad386c6016a06244))
+* **deps:** update oras-project/setup-oras action to v2.0.3 ([#25](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/25)) ([c47d203](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/c47d203d77edc06d17c050695cce4deede5496b6))
+* **deps:** update pre-commit hook antonbabenko/pre-commit-terraform to v1.109.3 ([#20](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/20)) ([bb6ad3e](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/bb6ad3efe7a235e4e23bfacd3ff5c257f4e39f2f))
+
 ## [1.1.2](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.1.1...v1.1.2) (2026-10-16)
 
 
