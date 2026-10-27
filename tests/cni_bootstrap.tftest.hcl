@@ -1,6 +1,7 @@
 # Validates per-CNI chart resolution and --set merging without a live cluster.
 
 mock_provider "helm" {}
+mock_provider "time" {}
 
 variables {
   cluster_name = "test"
@@ -26,6 +27,10 @@ run "cilium_defaults" {
   assert {
     condition     = length(terraform_data.wait_for_nodes) == 0
     error_message = "cilium must install concurrently (no node-registration gate)"
+  }
+  assert {
+    condition     = time_sleep.access_propagation[0].create_duration == "60s"
+    error_message = "eks must wait 60s for access grants before the first install"
   }
   assert {
     condition     = helm_release.cni[0].atomic == true && helm_release.cni[0].cleanup_on_fail == true && helm_release.cni[0].replace == false

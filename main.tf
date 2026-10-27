@@ -63,6 +63,8 @@ locals {
   # kube-ovn pins its control plane to the same label the poll waits on. The v2 chart needs it split into key and value.
   master_label = try(regex("^([^=]+)=([^=]*)$", local.node_selector), ["", ""])
 
+  access_propagation_delay = coalesce(var.access_propagation_delay, local.distribution == "eks" ? 60 : 0)
+
   version = coalesce(var.chart_version, local.cni_profile.version)
   values = concat(
     local.cni_profile.values_template == null ? [] : [templatefile("${path.module}/values/${local.cni_profile.values_template}", {
@@ -120,9 +122,24 @@ moved {
   to   = terraform_data.wait_for_nodes
 }
 
+# A new cluster's access grants take a while to apply: on EKS, Helm right after the access entry gets "forbidden".
+# Sleeps only on create, so later applies don't wait; new connection inputs mean a new cluster and sleep again.
+resource "time_sleep" "access_propagation" {
+  count = var.create && local.access_propagation_delay > 0 ? 1 : 0
+
+  create_duration = "${local.access_propagation_delay}s"
+  triggers = {
+    cluster_endpoint = var.cluster_endpoint
+    cluster_name     = var.cluster_name
+    k8s_service_host = var.k8s_service_host
+  }
+}
+
 # Depends only on cluster inputs, so it runs in parallel with node creation.
 resource "terraform_data" "wait_for_nodes" {
   count = var.create && local.wait_for_nodes ? 1 : 0
+
+  depends_on = [time_sleep.access_propagation]
 
   input            = local.poll_record
   triggers_replace = [var.bootstrap_generation, var.cluster_endpoint, var.cluster_name, var.region, local.node_selector, var.wait_for_nodes_count]
@@ -156,5 +173,5 @@ resource "helm_release" "cni" {
   set    = local.set
   values = local.values
 
-  depends_on = [terraform_data.wait_for_nodes]
+  depends_on = [time_sleep.access_propagation, terraform_data.wait_for_nodes]
 }

@@ -230,6 +230,7 @@ If an apply still fails with `cannot re-use a name that is still in use`, run `h
 | ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0 |
 | <a name="requirement_helm"></a> [helm](#requirement\_helm) | >= 3.0.0 |
+| <a name="requirement_time"></a> [time](#requirement\_time) | >= 0.9.0 |
 
 ## Providers
 
@@ -237,6 +238,7 @@ If an apply still fails with `cannot re-use a name that is still in use`, run `h
 | ---- | ------- |
 | <a name="provider_helm"></a> [helm](#provider\_helm) | >= 3.0.0 |
 | <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
+| <a name="provider_time"></a> [time](#provider\_time) | >= 0.9.0 |
 
 ## Modules
 
@@ -248,11 +250,13 @@ No modules.
 | ---- | ---- |
 | [helm_release.cni](https://registry.terraform.io/providers/hashicorp/helm/latest/docs/resources/release) | resource |
 | [terraform_data.wait_for_nodes](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) | resource |
+| [time_sleep.access_propagation](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) | resource |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_access_propagation_delay"></a> [access\_propagation\_delay](#input\_access\_propagation\_delay) | Seconds to wait before the first contact with a new cluster, so its access grants take effect (EKS access entries are eventually consistent). It waits once, and again only when the cluster connection inputs change. null means 60 on eks and 0 elsewhere. | `number` | `null` | no |
 | <a name="input_atomic"></a> [atomic](#input\_atomic) | Rolls back a failed install or upgrade (helm --atomic). Set false only to debug a failed release. | `bool` | `true` | no |
 | <a name="input_bootstrap_generation"></a> [bootstrap\_generation](#input\_bootstrap\_generation) | Change this value to run the node poll and the Helm upgrade again, for example after you replace the master node. Change it only after the old master node is gone. | `string` | `""` | no |
 | <a name="input_chart_version"></a> [chart\_version](#input\_chart\_version) | Chart version to install. null uses the module default for the selected cni; ignored for custom, which uses custom\_chart.version. | `string` | `null` | no |
