@@ -1,6 +1,7 @@
 # RKE2 clusters: client certificate authentication for the node poll and the RKE2 CNI defaults.
 
 mock_provider "helm" {}
+mock_provider "time" {}
 
 run "rke2_on_azure_turns_kube_proxy_replacement_on_without_aksbyocni" {
   command = plan
@@ -18,6 +19,10 @@ run "rke2_on_azure_turns_kube_proxy_replacement_on_without_aksbyocni" {
   assert {
     condition     = !contains(keys(yamldecode(output.resolved_values[0])), "aksbyocni")
     error_message = "aksbyocni is an AKS setting, not an RKE2 one"
+  }
+  assert {
+    condition     = length(time_sleep.access_propagation) == 0
+    error_message = "only eks waits for access grants by default"
   }
 }
 

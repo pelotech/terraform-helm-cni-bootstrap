@@ -171,6 +171,12 @@ variable "wait_timeout" {
   description = "Seconds Helm waits for the release to become ready. null uses the module default for the selected cni."
 }
 
+variable "access_propagation_delay" {
+  type        = number
+  default     = null
+  description = "Seconds to wait before the first contact with a new cluster, so its access grants take effect (EKS access entries are eventually consistent). It waits once, and again only when the cluster connection inputs change. null means 60 on eks and 0 elsewhere."
+}
+
 variable "atomic" {
   type        = bool
   default     = true
