@@ -110,8 +110,9 @@ The module depends only on the cluster, so Terraform runs it in parallel with no
 
 `kube_proxy_replacement` is on by default, except with `distribution = "aks"`, the default on azure, where kube-proxy stays on. When it is on, set
 `k8s_service_host` to the API server host, without scheme, so Cilium reaches the API server without kube-proxy.
-With `distribution = "aks"` the module also sets `aksbyocni.enabled`. With `pod_cidr`, Cilium allocates pods from that range. The module
-turns on Hubble relay and UI; turn them off with `helm_set`.
+With `distribution = "aks"` the module also sets `aksbyocni.enabled`. With `pod_cidr`, Cilium allocates pods from that range. The
+operator tolerates `CriticalAddonsOnly`, so it schedules on tainted system nodes. Hubble relay and UI are off, because they would stay
+`Pending` on a cluster with only system nodes and fail the install. Turn them on with `helm_set` or `helm_values`.
 
 ### kube-ovn and kube-ovn-v2
 

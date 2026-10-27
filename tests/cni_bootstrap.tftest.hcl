@@ -40,8 +40,12 @@ run "cilium_defaults" {
     error_message = "cilium with kube-proxy replacement must set k8sServiceHost and k8sServicePort from the inputs"
   }
   assert {
-    condition     = yamldecode(output.resolved_values[0]).hubble.relay.enabled == true && yamldecode(output.resolved_values[0]).hubble.ui.enabled == true
-    error_message = "hubble relay and ui are on by default"
+    condition     = yamldecode(output.resolved_values[0]).hubble.relay.enabled == false && yamldecode(output.resolved_values[0]).hubble.ui.enabled == false
+    error_message = "hubble relay and ui are off by default"
+  }
+  assert {
+    condition     = anytrue([for t in yamldecode(output.resolved_values[0]).operator.tolerations : t.key == "CriticalAddonsOnly" && t.operator == "Exists"])
+    error_message = "the cilium operator must tolerate CriticalAddonsOnly so it schedules on tainted system nodes"
   }
   assert {
     condition     = !anytrue([for s in output.resolved_set : s.name == "cniBootstrapGeneration"])

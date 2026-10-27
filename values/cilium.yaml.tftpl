@@ -1,9 +1,31 @@
 # Module defaults for the cilium chart. Override keys with helm_set or helm_values.
+# Hubble relay and UI are off: they don't tolerate system-node taints, so on a fresh cluster they stay Pending and
+# block the atomic install.
 hubble:
   relay:
-    enabled: true
+    enabled: false
   ui:
-    enabled: true
+    enabled: false
+# The chart defaults plus CriticalAddonsOnly, so the operator schedules on tainted system nodes. Without it the agents
+# get no pod CIDR and no node turns Ready. A list replaces the chart default, so the defaults are restated.
+operator:
+  tolerations:
+    - key: CriticalAddonsOnly
+      operator: Exists
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+    - key: node.kubernetes.io/not-ready
+      operator: Exists
+    - key: node.cloudprovider.kubernetes.io/uninitialized
+      operator: Exists
+    - key: node.cilium.io/agent-not-ready
+      operator: Exists
+    - key: node.kubernetes.io/unreachable
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 300
 
 # From the module inputs.
 kubeProxyReplacement: ${kube_proxy_replacement}
