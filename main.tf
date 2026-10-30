@@ -11,7 +11,7 @@ locals {
       repository   = "https://helm.cilium.io/"
       chart        = "cilium"
       # renovate: datasource=helm depName=cilium registryUrl=https://helm.cilium.io
-      version            = "1.20.3"
+      version            = "1.20.4"
       timeout            = 600
       node_selector      = ""
       needs_service_cidr = false
