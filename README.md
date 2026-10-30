@@ -173,6 +173,7 @@ Set `release_name` at the first install. A change replaces the release: Helm uni
 ## Override chart values
 
 - `chart_version` replaces the module's chart version.
+- `chart_repository` replaces the module's chart repository, for a mirror reachable from a private network.
 - `helm_set` entries apply after the module's `--set` defaults.
 - `helm_values` documents apply after the module's values document.
 
@@ -259,6 +260,7 @@ No modules.
 | <a name="input_access_propagation_delay"></a> [access\_propagation\_delay](#input\_access\_propagation\_delay) | Seconds to wait before the first contact with a new cluster, so its access grants take effect (EKS access entries are eventually consistent). It waits once, and again only when the cluster connection inputs change. null means 60 on eks and 0 elsewhere. | `number` | `null` | no |
 | <a name="input_atomic"></a> [atomic](#input\_atomic) | Rolls back a failed install or upgrade (helm --atomic). Set false only to debug a failed release. | `bool` | `true` | no |
 | <a name="input_bootstrap_generation"></a> [bootstrap\_generation](#input\_bootstrap\_generation) | Change this value to run the node poll and the Helm upgrade again, for example after you replace the master node. Change it only after the old master node is gone. | `string` | `""` | no |
+| <a name="input_chart_repository"></a> [chart\_repository](#input\_chart\_repository) | Chart repository to install from, such as a mirror reachable from a private network. null uses the module default for the selected cni; ignored for custom, which uses custom\_chart.repository. | `string` | `null` | no |
 | <a name="input_chart_version"></a> [chart\_version](#input\_chart\_version) | Chart version to install. null uses the module default for the selected cni; ignored for custom, which uses custom\_chart.version. | `string` | `null` | no |
 | <a name="input_cleanup_on_fail"></a> [cleanup\_on\_fail](#input\_cleanup\_on\_fail) | Deletes resources created during a failed upgrade (helm --cleanup-on-fail). | `bool` | `true` | no |
 | <a name="input_client_certificate"></a> [client\_certificate](#input\_client\_certificate) | Base64 encoded PEM client certificate the node poll authenticates with when kube\_exec is not set. Pair it with client\_key. | `string` | `""` | no |

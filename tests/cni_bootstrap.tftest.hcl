@@ -127,6 +127,25 @@ run "kube_ovn_defaults" {
   }
 }
 
+run "chart_repository_keeps_the_profile" {
+  command = plan
+
+  variables {
+    cni              = "kube-ovn-v2"
+    chart_repository = "oci://mirror.example.com/charts"
+  }
+
+  assert {
+    condition     = helm_release.cni[0].repository == "oci://mirror.example.com/charts" && helm_release.cni[0].chart == "kube-ovn-v2"
+    error_message = "chart_repository must replace the built-in repository and keep the profile's chart"
+  }
+
+  assert {
+    condition     = yamldecode(output.resolved_values[0]).networking.services.cidr.v4 == "10.100.0.0/16"
+    error_message = "the profile's values document must still apply with chart_repository"
+  }
+}
+
 run "kube_ovn_v2_defaults" {
   command = plan
 
