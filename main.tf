@@ -65,7 +65,8 @@ locals {
 
   access_propagation_delay = coalesce(var.access_propagation_delay, local.distribution == "eks" ? 60 : 0)
 
-  version = coalesce(var.chart_version, local.cni_profile.version)
+  version    = coalesce(var.chart_version, local.cni_profile.version)
+  repository = coalesce(var.chart_repository, local.cni_profile.repository)
   values = concat(
     local.cni_profile.values_template == null ? [] : [templatefile("${path.module}/values/${local.cni_profile.values_template}", {
       distribution           = local.distribution
@@ -160,7 +161,7 @@ resource "terraform_data" "wait_for_nodes" {
 resource "helm_release" "cni" {
   count      = var.create ? 1 : 0
   name       = local.cni_profile.release_name
-  repository = local.cni_profile.repository
+  repository = local.repository
   chart      = local.cni_profile.chart
   version    = local.version
   namespace  = var.namespace

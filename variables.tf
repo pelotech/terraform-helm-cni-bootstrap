@@ -153,6 +153,12 @@ variable "chart_version" {
   description = "Chart version to install. null uses the module default for the selected cni; ignored for custom, which uses custom_chart.version."
 }
 
+variable "chart_repository" {
+  type        = string
+  default     = null
+  description = "Chart repository to install from, such as a mirror reachable from a private network. null uses the module default for the selected cni; ignored for custom, which uses custom_chart.repository."
+}
+
 variable "helm_set" {
   type        = list(object({ name = string, value = string }))
   default     = []
