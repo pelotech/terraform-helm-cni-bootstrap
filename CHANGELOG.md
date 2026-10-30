@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.1.3...v1.2.0) (2026-10-30)
+
+
+### Features
+
+* add chart_repository to install the profile's chart from a mirror ([#30](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/30)) ([0226cc4](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/0226cc42a6b4fbf968c8f5bc08b53da921ae126b))
+
+
+### Chores
+
+* **deps:** bump nixpkgs from `55bfb4d` to `02c087f` ([#28](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/28)) ([d87a331](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/d87a331ab53f0755e8f3391790818943b2fe604b))
+* **deps:** update pre-commit hook antonbabenko/pre-commit-terraform to v1.109.4 ([#29](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/29)) ([8eac7fe](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/8eac7fe618164dcdbeaf502a418d85e35d63f08c))
+
 ## [1.1.3](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.1.2...v1.1.3) (2026-10-27)
 
 
