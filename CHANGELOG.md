@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.2.0...v1.2.1) (2026-11-01)
+
+
+### Chores
+
+* **deps:** update ghcr.io/kubeovn/charts/kube-ovn-v2 docker tag to v1.16.16 ([#21](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/21)) ([5fc47a2](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/5fc47a2246fe27c451da8c0a0bb4b8c5aa190a15))
+* **deps:** update helm release cilium to v1.20.4 ([#24](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/24)) ([98822dc](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/98822dc1c5e75f2757f0bb2b1ad8b374ee8237af))
+
 ## [1.2.0](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.1.3...v1.2.0) (2026-10-30)
 
 
