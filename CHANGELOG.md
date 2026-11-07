@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.2](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.2.1...v1.2.2) (2026-11-07)
+
+
+### Chores
+
+* **deps:** bump nixpkgs from `02c087f` to `31ecbac` ([#35](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/35)) ([627e342](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/627e3428a801f32957b174c05929c0a5c97362b2))
+* **deps:** update pre-commit hook zizmorcore/zizmor-pre-commit to v1.32.0 ([#34](https://github.com/pelotech/terraform-helm-cni-bootstrap/issues/34)) ([13b2cf9](https://github.com/pelotech/terraform-helm-cni-bootstrap/commit/13b2cf99a090a605cd979d4ca3f81f7a1757f4ac))
+
 ## [1.2.1](https://github.com/pelotech/terraform-helm-cni-bootstrap/compare/v1.2.0...v1.2.1) (2026-11-01)
 
 
