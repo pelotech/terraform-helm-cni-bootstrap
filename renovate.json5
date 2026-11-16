@@ -2,17 +2,17 @@
   extends: [
     'config:best-practices',
   ],
-  dependencyDashboard: true,
+  dependencyDashboard: {
+    enabled: true,
+  },
   gitIgnoredAuthors: [
     '245757523+pt-release-please[bot]@users.noreply.github.com',
   ],
-  // Keeps the .pre-commit-config.yaml `rev:` pins current.
   'pre-commit': {
     enabled: true,
   },
   customManagers: [
     {
-      // Helm chart versions in the cni profiles.
       customType: 'regex',
       managerFilePatterns: [
         '/^main\\.tf$/',
